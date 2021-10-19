@@ -1,6 +1,6 @@
 # PaaS IO
 
-![workflow badge](https://github.com/macintoshpie/passio/actions/workflows/ci.yaml/badge.svg)
+![workflow badge](https://github.com/macintoshpie/paasio/actions/workflows/ci.yaml/badge.svg)
 
 `passio` provides an io wrapper which reports:
 - The total number of bytes read/written.
