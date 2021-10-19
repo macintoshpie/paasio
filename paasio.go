@@ -5,31 +5,36 @@ import (
 	"sync"
 )
 
+// readCounter implements ReadCounter
 type readCounter struct {
-	nRead    *int64
-	nopsRead *int
-	muRead   *sync.RWMutex
+	nRead    *int64        // nRead tracks the number of bytes read
+	nopsRead *int          // nopsRead tracks the number of times Read is called
+	muRead   *sync.RWMutex // muRead is used to protect the critical sections referencing the values above
 	io.Reader
 }
 
+// writeCounter implements WriteCounter
 type writeCounter struct {
-	nWrite    *int64
-	nopsWrite *int
-	muWrite   *sync.RWMutex
+	nWrite    *int64        // nWrite tracks the number of bytes written
+	nopsWrite *int          // nopsWrite tracks the number of times Write is called
+	muWrite   *sync.RWMutex // muWrite is used to protect the critical sections referencing the values above
 	io.Writer
 }
 
+// readWriteCounter implements ReadWriteCounter
 type readWriteCounter struct {
 	ReadCounter
 	WriteCounter
 }
 
-func (rc readCounter) ReadCount() (int64, int) {
+// ReadCount returns the number of bytes read and number of times Read has been called
+func (rc readCounter) ReadCount() (n int64, nops int) {
 	rc.muRead.RLock()
 	defer rc.muRead.RUnlock()
 	return *rc.nRead, int(*rc.nopsRead)
 }
 
+// Read reads data into p
 func (rc readCounter) Read(p []byte) (n int, err error) {
 	n, err = rc.Reader.Read(p)
 	rc.muRead.Lock()
@@ -39,12 +44,14 @@ func (rc readCounter) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
+// WriteCount returns the number of bytes written and number of times Write has been called
 func (wc writeCounter) WriteCount() (int64, int) {
 	wc.muWrite.RLock()
 	defer wc.muWrite.RUnlock()
 	return *wc.nWrite, int(*wc.nopsWrite)
 }
 
+// Write writes data into p
 func (wc writeCounter) Write(p []byte) (n int, err error) {
 	n, err = wc.Writer.Write(p)
 	wc.muWrite.Lock()
@@ -54,26 +61,40 @@ func (wc writeCounter) Write(p []byte) (n int, err error) {
 	return n, err
 }
 
+// ReadCount returns the number of bytes read and number of times Read has been called
 func (rwc readWriteCounter) ReadCount() (int64, int) {
 	return rwc.ReadCounter.ReadCount()
 }
 
+// WriteCount returns the number of bytes written and number of times Write has been called
 func (rwc readWriteCounter) WriteCount() (int64, int) {
 	return rwc.WriteCounter.WriteCount()
 }
 
+// NewReadCounter creates a new ReadCounter
 func NewReadCounter(reader io.Reader) ReadCounter {
-	n := new(int64)
-	nops := new(int)
-	return readCounter{nRead: n, nopsRead: nops, muRead: new(sync.RWMutex), Reader: reader}
+	return readCounter{
+		nRead:    new(int64),
+		nopsRead: new(int),
+		muRead:   new(sync.RWMutex),
+		Reader:   reader,
+	}
 }
 
+// NewWriteCounter creates a new WriteCounter
 func NewWriteCounter(writer io.Writer) WriteCounter {
-	n := new(int64)
-	nops := new(int)
-	return writeCounter{nWrite: n, nopsWrite: nops, muWrite: new(sync.RWMutex), Writer: writer}
+	return writeCounter{
+		nWrite:    new(int64),
+		nopsWrite: new(int),
+		muWrite:   new(sync.RWMutex),
+		Writer:    writer,
+	}
 }
 
+// NewReadWriteCounter creates a new ReadWriteCounter
 func NewReadWriteCounter(readWriter io.ReadWriter) ReadWriteCounter {
-	return readWriteCounter{NewReadCounter(readWriter), NewWriteCounter(readWriter)}
+	return readWriteCounter{
+		NewReadCounter(readWriter),
+		NewWriteCounter(readWriter),
+	}
 }
