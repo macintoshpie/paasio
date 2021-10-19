@@ -36,9 +36,11 @@ func (rc readCounter) ReadCount() (n int64, nops int) {
 
 // Read reads data into p
 func (rc readCounter) Read(p []byte) (n int, err error) {
-	n, err = rc.Reader.Read(p)
+	// including the Read in the critical section is slower, but it ensures a more accurate
+	// reporting of bytes read
 	rc.muRead.Lock()
 	defer rc.muRead.Unlock()
+	n, err = rc.Reader.Read(p)
 	*rc.nRead += int64(n)
 	*rc.nopsRead += 1
 	return n, err
@@ -53,9 +55,11 @@ func (wc writeCounter) WriteCount() (int64, int) {
 
 // Write writes data into p
 func (wc writeCounter) Write(p []byte) (n int, err error) {
-	n, err = wc.Writer.Write(p)
+	// including the Write in the critical section is slower, but it ensures a more accurate
+	// reporting of bytes written
 	wc.muWrite.Lock()
 	defer wc.muWrite.Unlock()
+	n, err = wc.Writer.Write(p)
 	*wc.nWrite += int64(n)
 	*wc.nopsWrite += 1
 	return n, err
