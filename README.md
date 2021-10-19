@@ -1,30 +1,40 @@
-# PaaS IO Assignment
+# PaaS IO
 
-Report network IO statistics.
+![workflow badge](https://github.com/macintoshpie/passio/actions/workflows/ci.yaml/badge.svg)
 
-You are writing a PaaS, and you need a way to bill customers based
-on network and filesystem usage.
-
-Create a wrapper for network connections and files that can report IO
-statistics. The wrapper must report:
-
+`passio` provides an io wrapper which reports:
 - The total number of bytes read/written.
 - The total number of read/write operations.
 
-## Running the tests
+## Development
 
-To run the tests, run the command `go test` from within the assignment directory.
+```bash
+git clone git@github.com:macintoshpie/paasio.git
 
-If the test suite contains benchmarks, you can run these with the `--bench` and `--benchmem`
-flags:
+go mod download
+```
 
-    go test -v --bench . --benchmem
+### Running tests
 
-## Submission Instructions
-Email your solution as a public Github repository link OR a .zip package to engineeringjobs@cirrusmd.com, include 'Staff Engineer Take-Home' in the subject.
+```bash
+go test -v
+```
 
-## Questions
+## Implementation Notes
+I used embedded types to implement the required interfaces. See the docs in paasio.go for more details.
 
-If you have questions about the instructions, please ask. We want you to be successful. If you have a question about how
-to handle something that wasn't specifically addressed, make a decision and feel free to call it out in your own project
-readme or submission email with your reasoning behind your decision. No right or wrong answers for these types of things.
+### Alternatives considered
+We might not need a full read/write mutex for this use case, a single mutex might be sufficient depending on the frequency of reading.
+
+Also, the current implementation includes the Read and Write calls inside of the critical zone (ie locked section). This ensures a more accurate "reporting" of bytes written/read. However locking the mutex before these calls will result in a slower implementation, so I'd suggest excluding them if we're ok with possibly being slightly less accurate.
+
+In addition, if performance was of *much* greater importance than accuracy, I'd recommend we use the atomic package's AtomicAdd functions instead of mutexes. For example, when calling read, we could have done something like this:
+```
+func (rc readCounter) Read(p []byte) (n int, err error) {
+	n, err = rc.Reader.Read(p)
+	atomic.AddInt64(rc.nRead, int64(n))
+	atomic.AddInt32(rc.nopsRead, 1)
+	return n, err
+}
+```
+This will be much faster than using locks. But callers of `*Count` beware, you might be reading a partially complete report if a goroutine is suspended right after the first increment.
