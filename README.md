@@ -2,7 +2,7 @@
 
 ![workflow badge](https://github.com/macintoshpie/paasio/actions/workflows/ci.yaml/badge.svg)
 
-`passio` provides an io wrapper which reports:
+`paasio` provides an io wrapper which reports:
 - The total number of bytes read/written.
 - The total number of read/write operations.
 
